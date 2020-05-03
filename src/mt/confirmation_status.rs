@@ -8,7 +8,7 @@ use std::io::{Read, Write};
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ConfirmationStatus {
     /// The Unique Client Message ID this message.
-    message_id: u32,
+    pub message_id: u32,
     /// The device id.
     pub imei: [u8; 15],
     /// The Iridium Gateway id for this message.
@@ -26,8 +26,8 @@ impl ConfirmationStatus {
 
         let message_id = read.read_u32::<BigEndian>().map_err(Error::Io)?;
         let mut imei = [0; 15];
-        let auto_id = read.read_u32::<BigEndian>().map_err(Error::Io)?;
         read.read_exact(&mut imei).map_err(Error::Io)?;
+        let auto_id = read.read_u32::<BigEndian>().map_err(Error::Io)?;
 
         let status = read.read_i16::<BigEndian>().map_err(Error::Io)?;
 
@@ -37,5 +37,19 @@ impl ConfirmationStatus {
             imei,
             status,
         })
+    }
+
+    pub fn write_to<W: Write>(&self, write: &mut W) -> Result<()> {
+        write.write_u8(0x44)?;
+        write.write_u16::<BigEndian>(25)?;
+        write.write_u32::<BigEndian>(self.message_id)?;
+        write.write_all(&self.imei)?;
+        write.write_u32::<BigEndian>(self.auto_id)?;
+        write.write_i16::<BigEndian>(self.status)?;
+        Ok(())
+    }
+
+    pub fn len(&self) -> usize {
+        28
     }
 }

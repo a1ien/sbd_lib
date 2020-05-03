@@ -13,7 +13,7 @@ const PROTOCOL_REVISION_NUMBER: u8 = 1;
 
 /// A Iridium SBD message.
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Message {
     header: Header,
     payload: Vec<u8>,
@@ -21,7 +21,21 @@ pub struct Message {
     information_elements: Vec<InformationElement>,
 }
 
+impl fmt::Display for Message {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Header: {}, payload: {:?}", self.header, self.payload)?;
+        if let Some(location) = self.location {
+            write!(f, ", location: {}", location)?;
+        }
+        if !self.information_elements.is_empty() {
+            write!(f, ",ie {:?}", self.information_elements)?;
+        }
+        Ok(())
+    }
+}
+
 impl Message {
+    /// Returns this message's header.
     pub fn header(&self) -> &dyn SbdHeader {
         &self.header
     }
@@ -80,7 +94,7 @@ impl Message {
     ///     mtmsn: 0,
     ///     time_of_session: Utc.ymd(2017, 10, 1).and_hms(0, 0, 0),
     /// }.into());
-    /// let payload = InformationElement::Payload(Vec::new());
+    /// let payload = InformationElement::MOPayload(Vec::new());
     /// let message = Message::create(vec![header, payload]);
     /// # }
     /// ```
@@ -99,12 +113,14 @@ impl Message {
                     } else {
                         header = Some(h);
                     }
-                },
-                InformationElement::Payload(p) => if payload.is_some() {
-                    return Err(Error::TwoPayloads);
-                } else {
-                    payload = Some(p);
-                },
+                }
+                InformationElement::MOPayload(p) | InformationElement::MTPayload(p) => {
+                    if payload.is_some() {
+                        return Err(Error::TwoPayloads);
+                    } else {
+                        payload = Some(p);
+                    }
+                }
                 InformationElement::LocationInformation(l) => {
                     if location.is_some() {
                         return Err(Error::TwoLocations);
@@ -155,24 +171,38 @@ impl Message {
     pub fn write_to<W: Write>(&self, mut write: W) -> Result<()> {
         use byteorder::{BigEndian, WriteBytesExt};
 
-        let payload = InformationElement::from(self.payload.clone());
-        let overall_message_length = self.header.len() + payload.len()
-            + self.information_elements
+        let payload = match self.header {
+            Header::MOHeader(_) => InformationElement::MOPayload(self.payload.clone()),
+            Header::MTHeader(_) => InformationElement::MTPayload(self.payload.clone()),
+        };
+
+        let overall_message_length = self.header.len()
+            + payload.len()
+            + self.location.and_then(|l| Some(l.len())).unwrap_or(0)
+            + self
+                .information_elements
                 .iter()
                 .map(|ie| ie.len())
                 .sum::<usize>();
+
         if overall_message_length > u16::MAX as usize {
-            return Err(Error::OverallMessageLength(overall_message_length));
+            return Err(crate::Error::OverallMessageLength(overall_message_length));
         }
 
         write.write_u8(PROTOCOL_REVISION_NUMBER)?;
         write.write_u16::<BigEndian>(overall_message_length as u16)?;
         self.header.write_to(&mut write)?;
         payload.write_to(&mut write)?;
+        self.location.and_then(|l| l.write_to(&mut write).ok());
         for information_element in &self.information_elements {
             information_element.write_to(&mut write)?;
         }
         Ok(())
+    }
+
+    /// Returns this message's location.
+    pub fn location(&self) -> &Option<LocationInformation> {
+        &self.location
     }
 }
 
@@ -238,15 +268,17 @@ mod tests {
     #[test]
     fn two_payloads() {
         let header = mo_header();
-        let payload = Vec::new();
-        assert!(
-            Message::create(vec![header.into(), payload.clone().into(), payload.into()]).is_err()
-        );
+        assert!(Message::create(vec![
+            header.into(),
+            InformationElement::MOPayload(vec![]),
+            InformationElement::MOPayload(vec![])
+        ])
+        .is_err());
     }
 
     #[test]
     fn no_header() {
-        assert!(Message::create(vec![vec![].into()]).is_err());
+        assert!(Message::create(vec![InformationElement::MOPayload(vec![])]).is_err());
     }
 
     #[test]
@@ -275,4 +307,24 @@ mod tests {
         }
     }
 
+    #[test]
+    fn generate_save_and_read_back() {
+        use chrono::{SubsecRound, Utc};
+        use std::io::Cursor;
+        let header = Header::MOHeader(mo::Header {
+            auto_id: 0x545645,
+            imei: [0x31; 15],
+            session_status: mo::SessionStatus::Ok,
+            momsn: 101,
+            mtmsn: 102,
+            time_of_session: Utc::now().trunc_subsecs(0),
+        });
+        let mut buff = vec![];
+        let message = Message::new(header, vec![], None, vec![]);
+        message.write_to(&mut buff).unwrap();
+
+        let read_back = Message::read_from(Cursor::new(buff)).unwrap();
+
+        assert_eq!(message.header().as_mo(), read_back.header().as_mo())
+    }
 }

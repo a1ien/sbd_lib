@@ -27,7 +27,7 @@ impl SbdHeader for Header {
         use byteorder::{BigEndian, WriteBytesExt};
 
         write.write_u8(1)?;
-        write.write_u16::<BigEndian>(31)?;
+        write.write_u16::<BigEndian>(28)?;
         write.write_u32::<BigEndian>(self.auto_id)?;
         write.write_all(&self.imei)?;
         write.write_u8(self.session_status as u8)?;

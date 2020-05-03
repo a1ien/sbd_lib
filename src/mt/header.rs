@@ -17,8 +17,8 @@ impl SbdHeader for Header {
     fn write_to(&self, write: &mut dyn Write) -> Result<()> {
         use byteorder::{BigEndian, WriteBytesExt};
 
-        write.write_u8(1)?;
-        write.write_u16::<BigEndian>(28)?;
+        write.write_u8(0x41)?;
+        write.write_u16::<BigEndian>(21)?;
         write.write_u32::<BigEndian>(self.message_id)?;
         write.write_all(&self.imei)?;
         write.write_u16::<BigEndian>(self.flags)?;
@@ -30,7 +30,7 @@ impl SbdHeader for Header {
         str::from_utf8(&self.imei).expect("IMEI numbers are specified to be ascii number")
     }
     fn len(&self) -> usize {
-        28
+        24
     }
     fn as_mt(&self) -> Option<&Header> {
         Some(&self)

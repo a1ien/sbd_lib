@@ -28,6 +28,29 @@ pub enum Header {
     MTHeader(mt::Header),
 }
 
+impl fmt::Display for Header {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Header::MOHeader(header) => write!(
+                f,
+                "MO auto_id: {}, session_status: {:?}, imei: {},momsn: {}, mtmsn: {},  time: {}",
+                header.auto_id,
+                header.session_status,
+                header.imei(),
+                header.momsn,
+                header.mtmsn,
+                header.time_of_session
+            ),
+            Header::MTHeader(header) => write!(
+                f,
+                "MT message_id: {}, imei: {}, flags: {}",
+                header.message_id,
+                header.imei(),
+                header.flags
+            ),
+        }
+    }
+}
 
 impl SbdHeader for Header {
     fn write_to(&self, write: &mut dyn Write) -> Result<()> {
@@ -89,6 +112,23 @@ pub enum Status {
     MTStatus(mt::ConfirmationStatus),
 }
 
+impl Status {
+    fn write_to<W: Write>(&self, write: &mut W) -> Result<()> {
+        match self {
+            Status::MOStatus(status) => status.write_to(write)?,
+            Status::MTStatus(status) => status.write_to(write)?,
+        };
+        Ok(())
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Status::MOStatus(status) => status.len(),
+            Status::MTStatus(status) => status.len(),
+        }
+    }
+}
+
 impl From<mo::ConfirmationStatus> for Status {
     fn from(status: mo::ConfirmationStatus) -> Self {
         Status::MOStatus(status)
@@ -109,7 +149,9 @@ pub enum InformationElement {
     /// Information element holding the header MO or MT.
     Header(Header),
     /// The mobile originated payload.
-    Payload(Vec<u8>),
+    MOPayload(Vec<u8>),
+    /// The mobile originated payload.
+    MTPayload(Vec<u8>),
     /// Message Delivery Confirmation
     Status(Status),
     /// The mobile originated location information.
@@ -130,7 +172,11 @@ impl InformationElement {
             0x2 | 0x42 => {
                 let mut payload = vec![0; length as usize];
                 read.read_exact(&mut payload).map_err(Error::Io)?;
-                Ok(InformationElement::Payload(payload))
+                Ok(if iei == 0x2 {
+                    InformationElement::MOPayload(payload)
+                } else {
+                    InformationElement::MTPayload(payload)
+                })
             }
             0x3 => {
                 let mut location = vec![0; length as usize];
@@ -181,11 +227,12 @@ impl InformationElement {
 
     /// Returns the length of this information element, including the information element header.
     pub fn len(&self) -> usize {
-        match *self {
-            InformationElement::Header(ref h) => h.len(),
-            InformationElement::Status(Status::MOStatus(_)) => 1,
-            InformationElement::Status(Status::MTStatus(_)) => 25,
-            InformationElement::Payload(ref payload) => 3 + payload.len(),
+        match self {
+            InformationElement::Header(h) => h.len(),
+            InformationElement::Status(status) => status.len(),
+            InformationElement::MOPayload(payload) | InformationElement::MTPayload(payload) => {
+                payload.len() + 3
+            }
             InformationElement::LocationInformation(location) => location.len(),
         }
     }
@@ -195,7 +242,7 @@ impl InformationElement {
     /// At this point, only can be true if the payload is empty.
     pub fn is_empty(&self) -> bool {
         match *self {
-            InformationElement::Payload(ref payload) => payload.is_empty(),
+            InformationElement::MOPayload(ref payload) => payload.is_empty(),
             _ => false,
         }
     }
@@ -205,15 +252,25 @@ impl InformationElement {
         use crate::Error;
         use byteorder::{BigEndian, WriteBytesExt};
 
-        match *self {
-            InformationElement::Header(ref header) => {
+        match self {
+            InformationElement::Header(header) => {
                 header.write_to(&mut write)?;
             }
-            InformationElement::Status(_) => {
-                unimplemented!();
+            InformationElement::Status(status) => {
+                status.write_to(&mut write)?;
             }
-            InformationElement::Payload(ref payload) => {
+            InformationElement::MOPayload(payload) => {
                 write.write_u8(2)?;
+                let len = payload.len();
+                if len > u16::MAX as usize {
+                    return Err(Error::PayloadTooLong(len));
+                } else {
+                    write.write_u16::<BigEndian>(len as u16)?;
+                }
+                write.write_all(payload)?;
+            }
+            InformationElement::MTPayload(payload) => {
+                write.write_u8(0x42)?;
                 let len = payload.len();
                 if len > u16::MAX as usize {
                     return Err(Error::PayloadTooLong(len));
@@ -254,12 +311,6 @@ impl From<mt::Header> for InformationElement {
     }
 }
 
-impl From<Vec<u8>> for InformationElement {
-    fn from(payload: Vec<u8>) -> InformationElement {
-        InformationElement::Payload(payload)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -293,7 +344,7 @@ mod tests {
             }
         }
         match InformationElement::read_from(file).unwrap() {
-            InformationElement::Payload(data) => {
+            InformationElement::MOPayload(data) => {
                 assert_eq!(b"test message from pete", data.as_slice())
             }
             _ => panic!("Unexpected information element"),
@@ -324,7 +375,7 @@ mod tests {
 
     #[test]
     fn payload_len() {
-        assert_eq!(4, InformationElement::from(vec![1]).len());
+        assert_eq!(4, InformationElement::MOPayload(vec![1]).len());
     }
 
     #[test]
@@ -379,17 +430,15 @@ mod tests {
             mtmsn: 1,
             time_of_session: Utc.ymd(1969, 12, 31).and_hms(23, 59, 59),
         };
-        assert!(
-            InformationElement::Header(header.into())
-                .write_to(&mut Cursor::new(Vec::new()))
-                .is_err()
-        );
+        assert!(InformationElement::Header(header.into())
+            .write_to(&mut Cursor::new(Vec::new()))
+            .is_err());
     }
 
     #[test]
     fn roundtrip_payload() {
         let payload = vec![1];
-        let ie = InformationElement::from(payload);
+        let ie = InformationElement::MOPayload(payload);
         let mut cursor = Cursor::new(Vec::new());
         ie.write_to(&mut cursor).unwrap();
         cursor.set_position(0);
@@ -400,11 +449,9 @@ mod tests {
     fn payload_too_long() {
         use std::u16;
         let payload = vec![0; u16::MAX as usize + 1];
-        assert!(
-            InformationElement::from(payload)
-                .write_to(&mut Cursor::new(Vec::new()))
-                .is_err()
-        );
+        assert!(InformationElement::MOPayload(payload)
+            .write_to(&mut Cursor::new(Vec::new()))
+            .is_err());
     }
 
     #[test]

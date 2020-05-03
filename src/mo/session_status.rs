@@ -57,4 +57,17 @@ impl SessionStatus {
     pub fn value(&self) -> i8 {
         *self as i8
     }
+
+    pub fn is_ok(&self) -> bool {
+        match self {
+            SessionStatus::Ok
+            | SessionStatus::OkMobileTerminatedTooLarge
+            | SessionStatus::OkLocationUnacceptableQuality => true,
+            SessionStatus::Timeout => false,
+            SessionStatus::MobileOriginatedTooLarge => false,
+            SessionStatus::RFLinkLoss => false,
+            SessionStatus::IMEIProtocolAnomaly => false,
+            SessionStatus::Prohibited => false,
+        }
+    }
 }

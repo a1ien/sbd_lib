@@ -24,5 +24,13 @@ impl ConfirmationStatus {
 
         Ok(ConfirmationStatus { status })
     }
+
+    pub fn write_to<W: Write>(&self, write: &mut W) -> Result<()> {
+        write.write_u8(self.status as u8)?;
+        Ok(())
+    }
+
+    pub fn len(&self) -> usize {
+        4
     }
 }

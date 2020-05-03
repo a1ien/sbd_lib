@@ -41,6 +41,10 @@ pub enum Error {
     #[fail(display = "Two payloads in a MO message")]
     TwoPayloads,
 
+    /// Two locations in an message.
+    #[fail(display = "Two locations in a MO message")]
+    TwoLocations,
+
     /// The session status is unknown.
     #[fail(display = "Unexpected EOF during reading {}.", _0)]
     UnknownSessionStatus(u8),
