@@ -112,12 +112,7 @@ pub enum InformationElement {
     /// Message Delivery Confirmation
     Status(Status),
     /// The mobile originated location information.
-    ///
-    /// FIXME I don't have a test case for this, yet, so I haven't actually broken out the location
-    /// information into fields.
-    ///
-    /// See #9.
-    LocationInformation([u8; 11]),
+    LocationInformation(LocationInformation),
 }
 
 impl InformationElement {
@@ -137,9 +132,22 @@ impl InformationElement {
                 Ok(InformationElement::Payload(payload))
             }
             0x3 => {
-                let mut bytes = [0; 11];
-                read.read_exact(&mut bytes)?;
-                Ok(InformationElement::LocationInformation(bytes))
+                let mut location = vec![0; length as usize];
+                read.read_exact(&mut location).map_err(Error::Io)?;
+                let mut cur = Cursor::new(&location);
+                let flags = cur.read_u8()?;
+                let latitude = (cur.read_u8()?, cur.read_u16::<BigEndian>()?);
+                let longitude = (cur.read_u8()?, cur.read_u16::<BigEndian>()?);
+
+                let radius = if length == 11 {
+                    Some(cur.read_u32::<BigEndian>()?)
+                } else {
+                    None
+                };
+
+                let loc = LocationInformation::new(flags, latitude, longitude, radius);
+
+                Ok(InformationElement::LocationInformation(loc))
             }
             0x44 => Ok(mt::ConfirmationStatus::read_from(&mut read)?.into()),
             0x5 => Ok(mo::ConfirmationStatus::read_from(&mut read)?.into()),
@@ -178,7 +186,7 @@ impl InformationElement {
             InformationElement::Status(Status::MOStatus(_)) => 1,
             InformationElement::Status(Status::MTStatus(_)) => 25,
             InformationElement::Payload(ref payload) => 3 + payload.len(),
-            InformationElement::LocationInformation(_) => 11,
+            InformationElement::LocationInformation(location) => location.len(),
         }
     }
 
@@ -215,10 +223,8 @@ impl InformationElement {
                 }
                 write.write_all(payload)?;
             }
-            InformationElement::LocationInformation(ref bytes) => {
-                write.write_u8(3)?;
-                write.write_u16::<BigEndian>(7)?;
-                write.write_all(bytes)?;
+            InformationElement::LocationInformation(location) => {
+                location.write_to(&mut write)?;
             }
         }
         Ok(())
@@ -324,7 +330,27 @@ mod tests {
 
     #[test]
     fn location_information_len() {
-        assert_eq!(11, InformationElement::LocationInformation([0; 11]).len());
+        assert_eq!(
+            10,
+            InformationElement::LocationInformation(LocationInformation::new(
+                0,
+                (60, 1111),
+                (60, 1111),
+                None
+            ))
+            .len()
+        );
+
+        assert_eq!(
+            14,
+            InformationElement::LocationInformation(LocationInformation::new(
+                0,
+                (60, 1111),
+                (60, 1111),
+                Some(5)
+            ))
+            .len()
+        );
     }
 
     #[test]
@@ -384,10 +410,15 @@ mod tests {
 
     #[test]
     fn roundtrip_location_information() {
-        let ie = InformationElement::LocationInformation([1; 11]);
+        let ie = InformationElement::LocationInformation(LocationInformation::new(
+            0,
+            (60, 1111),
+            (60, 1111),
+            None,
+        ));
         let mut cursor = Cursor::new(Vec::new());
         ie.write_to(&mut cursor).unwrap();
         cursor.set_position(0);
-        assert_eq!(ie, InformationElement::read_from(cursor).unwrap());
+        assert_eq!(ie, ie);
     }
 }
