@@ -1,5 +1,6 @@
-use Result;
-use std::io::Read;
+use crate::Result;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use std::io::{Read, Write};
 
 /// The Message Delivery Confirmation of a mobile-originated session.
 ///
@@ -20,9 +21,8 @@ impl ConfirmationStatus {
         self.status > 0
     }
 
-    pub fn read_from(read: &mut Read) -> Result<Self> {
-        use Error;
-        use byteorder::{BigEndian, ReadBytesExt};
+    pub fn read_from(read: &mut dyn Read) -> Result<Self> {
+        use crate::Error;
 
         let message_id = read.read_u32::<BigEndian>().map_err(Error::Io)?;
         let mut imei = [0; 15];

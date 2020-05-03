@@ -1,7 +1,7 @@
-use Result;
+use crate::information_element::SbdHeader;
+use crate::mo::session_status::SessionStatus;
+use crate::Result;
 use chrono::{DateTime, Utc};
-use mo::session_status::SessionStatus;
-use information_element::SbdHeader;
 use std::io::{Read, Write};
 
 /// A mobile-originated header.
@@ -22,9 +22,9 @@ pub struct Header {
 }
 
 impl SbdHeader for Header {
-    fn write_to(&self, write: &mut Write) -> Result<()> {
+    fn write_to(&self, write: &mut dyn Write) -> Result<()> {
+        use crate::Error;
         use byteorder::{BigEndian, WriteBytesExt};
-        use Error;
 
         write.write_u8(1)?;
         write.write_u16::<BigEndian>(31)?;
@@ -55,8 +55,8 @@ impl SbdHeader for Header {
 }
 
 impl Header {
-    pub fn read_from(read: &mut Read) -> Result<Self> {
-        use Error;
+    pub fn read_from(read: &mut dyn Read) -> Result<Self> {
+        use crate::Error;
         use byteorder::{BigEndian, ReadBytesExt};
         use chrono::TimeZone;
 
@@ -66,7 +66,8 @@ impl Header {
         let session_status = SessionStatus::new(read.read_u8().map_err(Error::Io)?)?;
         let momsn = read.read_u16::<BigEndian>().map_err(Error::Io)?;
         let mtmsn = read.read_u16::<BigEndian>().map_err(Error::Io)?;
-        let time_of_session = read.read_u32::<BigEndian>()
+        let time_of_session = read
+            .read_u32::<BigEndian>()
             .map_err(Error::from)
             .map(|n| Utc.timestamp(i64::from(n), 0))?;
         Ok(Header {

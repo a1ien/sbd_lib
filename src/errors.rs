@@ -1,3 +1,4 @@
+use failure::Fail;
 use std::convert::From;
 
 #[derive(Fail, Debug)]

@@ -1,8 +1,13 @@
-use Result;
-use information_element::{Header, InformationElement, SbdHeader};
-use std::path::Path;
-use std::io::{Read, Write};
-use std::rc::Rc;
+use crate::{
+    information_element::{Header, InformationElement, SbdHeader},
+    mo::LocationInformation,
+    Result,
+};
+use std::{
+    fmt,
+    io::{Read, Write},
+    path::Path,
+};
 
 const PROTOCOL_REVISION_NUMBER: u8 = 1;
 
@@ -10,13 +15,14 @@ const PROTOCOL_REVISION_NUMBER: u8 = 1;
 
 #[derive(Debug, Clone)]
 pub struct Message {
-    header: Rc<SbdHeader>,
+    header: Header,
     payload: Vec<u8>,
+    location: Option<LocationInformation>,
     information_elements: Vec<InformationElement>,
 }
 
 impl Message {
-    pub fn header(&self) -> &Rc<SbdHeader> {
+    pub fn header(&self) -> &dyn SbdHeader {
         &self.header
     }
 
@@ -29,7 +35,7 @@ impl Message {
     /// let message = Message::from_path("data/0-mo.sbd").unwrap();
     /// let payload = message.payload();
     /// ```
-    pub fn payload(&self) -> &Vec<u8> {
+    pub fn payload(&self) -> &[u8] {
         &self.payload
     }
 
@@ -43,10 +49,16 @@ impl Message {
         Self::create(InformationElement::read(&mut read)?)
     }
 
-    pub fn new(header: Rc<SbdHeader>, payload: Vec<u8>, ie: Vec<InformationElement>) -> Self {
+    pub fn new(
+        header: Header,
+        payload: Vec<u8>,
+        location: Option<LocationInformation>,
+        ie: Vec<InformationElement>,
+    ) -> Self {
         Message {
             header,
             payload,
+            location,
             information_elements: ie,
         }
     }
@@ -56,8 +68,6 @@ impl Message {
     /// # Examples
     ///
     /// ```
-    /// extern crate chrono;
-    /// # extern crate sbd_lib;
     /// # fn main() {
     /// use chrono::{Utc, TimeZone};
     /// use sbd_lib::mo;
@@ -75,19 +85,19 @@ impl Message {
     /// # }
     /// ```
     pub fn create<I: IntoIterator<Item = InformationElement>>(iter: I) -> Result<Self> {
-        use Error;
+        use crate::Error;
 
-        let mut header: Option<Rc<SbdHeader>> = None;
+        let mut header: Option<Header> = None;
         let mut payload = None;
+        let mut location = None;
         let mut information_elements = Vec::new();
         for information_element in iter {
             match information_element {
-                InformationElement::Header(h) => if header.is_some() {
-                    return Err(Error::TwoHeaders);
-                } else {
-                    match h {
-                        Header::MTHeader(h) => header = Some(Rc::new(h)),
-                        Header::MOHeader(h) => header = Some(Rc::new(h)),
+                InformationElement::Header(h) => {
+                    if header.is_some() {
+                        return Err(Error::TwoHeaders);
+                    } else {
+                        header = Some(h);
                     }
                 },
                 InformationElement::Payload(p) => if payload.is_some() {
@@ -95,6 +105,13 @@ impl Message {
                 } else {
                     payload = Some(p);
                 },
+                InformationElement::LocationInformation(l) => {
+                    if location.is_some() {
+                        return Err(Error::TwoLocations);
+                    } else {
+                        location = Some(l);
+                    }
+                }
                 ie => information_elements.push(ie),
             }
         }
@@ -102,6 +119,7 @@ impl Message {
         Ok(Self::new(
             header.ok_or(Error::NoHeader)?,
             payload.ok_or(Error::NoPayload)?,
+            location,
             information_elements,
         ))
     }
@@ -129,16 +147,13 @@ impl Message {
     /// # Examples
     ///
     /// ```
-    /// use std::io::Cursor;
     /// use sbd_lib::Message;
     /// let message = Message::from_path("data/0-mo.sbd").unwrap();
-    /// let mut cursor = Cursor::new(Vec::new());
-    /// message.write_to(&mut cursor);
+    /// let mut buff = vec![];
+    /// message.write_to(&mut buff);
     /// ```
     pub fn write_to<W: Write>(&self, mut write: W) -> Result<()> {
         use byteorder::{BigEndian, WriteBytesExt};
-        use std::u16;
-        use Error;
 
         let payload = InformationElement::from(self.payload.clone());
         let overall_message_length = self.header.len() + payload.len()
@@ -163,23 +178,15 @@ impl Message {
 
 impl From<Header> for Message {
     fn from(header: Header) -> Message {
-        let header: Rc<SbdHeader> = match header {
-            Header::MTHeader(h) => Rc::new(h),
-            Header::MOHeader(h) => Rc::new(h),
-        };
-        Message {
-            header,
-            payload: vec![],
-            information_elements: vec![],
-        }
+        Message::new(header, vec![], None, vec![])
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mo;
     use chrono::{TimeZone, Utc};
-    use mo;
     use std::fs::File;
     use std::str;
 

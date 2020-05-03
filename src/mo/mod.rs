@@ -1,8 +1,9 @@
-mod header;
 mod confirmation_status;
+mod header;
+mod location_information;
 mod session_status;
 
-pub use self::header::Header;
-pub use self::confirmation_status::ConfirmationStatus;
-pub use self::session_status::SessionStatus;
+pub use confirmation_status::ConfirmationStatus;
+pub use header::Header;
 pub use location_information::LocationInformation;
+pub use session_status::SessionStatus;

@@ -1,6 +1,6 @@
-use Result;
+use crate::information_element::SbdHeader;
+use crate::Result;
 use std::io::{Read, Write};
-use information_element::SbdHeader;
 
 /// A mobile-terminated header.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -14,7 +14,7 @@ pub struct Header {
 }
 
 impl SbdHeader for Header {
-    fn write_to(&self, write: &mut Write) -> Result<()> {
+    fn write_to(&self, write: &mut dyn Write) -> Result<()> {
         use byteorder::{BigEndian, WriteBytesExt};
 
         write.write_u8(1)?;
@@ -38,8 +38,8 @@ impl SbdHeader for Header {
 }
 
 impl Header {
-    pub fn read_from(read: &mut Read) -> Result<Header> {
-        use Error;
+    pub fn read_from(read: &mut dyn Read) -> Result<Header> {
+        use crate::Error;
         use byteorder::{BigEndian, ReadBytesExt};
         let message_id = read.read_u32::<BigEndian>().map_err(Error::Io)?;
         let mut imei = [0; 15];

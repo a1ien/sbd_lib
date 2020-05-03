@@ -1,4 +1,4 @@
-use Result;
+use crate::Result;
 
 /// The status of a mobile-originated session.
 ///
@@ -40,7 +40,7 @@ impl SessionStatus {
     /// assert!(SessionStatus::new(3).is_err());
     /// ```
     pub fn new(n: u8) -> Result<SessionStatus> {
-        use Error;
+        use crate::Error;
         match n {
             0 => Ok(SessionStatus::Ok),
             1 => Ok(SessionStatus::OkMobileTerminatedTooLarge),

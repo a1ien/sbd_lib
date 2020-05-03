@@ -1,7 +1,8 @@
-use Result;
-use std::io::Read;
+use crate::Result;
+use byteorder::WriteBytesExt;
+use std::io::{Read, Write};
 
-// The Message Delivery Confirmation of a mobile-originated session.
+/// The Message Delivery Confirmation of a mobile-originated session.
 ///
 /// The descriptions for these codes are taken directly from the `DirectIP` documentation.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -15,15 +16,13 @@ impl ConfirmationStatus {
         self.status
     }
 
-    pub fn read_from(read: &mut Read) -> Result<Self> {
-        use Error;
-        use byteorder::{ReadBytesExt};
-
+    pub fn read_from(read: &mut dyn Read) -> Result<Self> {
+        use crate::Error;
+        use byteorder::ReadBytesExt;
 
         let status = read.read_u8().map_err(Error::Io)? == 1;
 
-        Ok(ConfirmationStatus {
-            status,
-        })
+        Ok(ConfirmationStatus { status })
+    }
     }
 }

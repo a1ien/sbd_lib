@@ -1,14 +1,14 @@
-use std::fmt::Debug;
-use Result;
-use mo;
-use mt;
-use std::io::{Read, Write};
+use crate::mo::LocationInformation;
+use crate::{mo, mt, Result};
+use byteorder;
+use std::io::Cursor;
+use std::{fmt, io::Read, io::Write};
 
 const PROTOCOL_REVISION_NUMBER: u8 = 1;
 
-pub trait SbdHeader: Debug {
+pub trait SbdHeader: fmt::Debug {
     //fn read_from(read: &Read) -> Result<Box<Self>>;
-    fn write_to(&self, write: &mut Write) -> Result<()>;
+    fn write_to(&self, write: &mut dyn Write) -> Result<()>;
     fn imei(&self) -> &str;
     fn len(&self) -> usize;
     fn as_mo(&self) -> Option<&mo::Header> {
@@ -28,19 +28,20 @@ pub enum Header {
     MTHeader(mt::Header),
 }
 
+
 impl SbdHeader for Header {
-    fn write_to(&self, write: &mut Write) -> Result<()> {
-        match *self {
-            Header::MOHeader(ref header) => header.write_to(write)?,
-            Header::MTHeader(ref header) => header.write_to(write)?,
+    fn write_to(&self, write: &mut dyn Write) -> Result<()> {
+        match self {
+            Header::MOHeader(header) => header.write_to(write)?,
+            Header::MTHeader(header) => header.write_to(write)?,
         }
         Ok(())
     }
 
     fn imei(&self) -> &str {
-        match *self {
-            Header::MOHeader(ref header) => header.imei(),
-            Header::MTHeader(ref header) => header.imei(),
+        match self {
+            Header::MOHeader(header) => header.imei(),
+            Header::MTHeader(header) => header.imei(),
         }
     }
 
@@ -118,7 +119,7 @@ pub enum InformationElement {
 impl InformationElement {
     /// Reads this information element from a `Read`.
     pub fn read_from<R: Read>(mut read: R) -> Result<Self> {
-        use Error;
+        use crate::Error;
         use byteorder::{BigEndian, ReadBytesExt};
 
         let iei = read.read_u8().map_err(Error::Io)?;
@@ -157,9 +158,8 @@ impl InformationElement {
     }
 
     pub fn read<R: Read>(mut read: R) -> Result<Vec<Self>> {
-        use Error;
+        use crate::Error;
         use byteorder::{BigEndian, ReadBytesExt};
-        use std::io::Cursor;
 
         let protocol_revision_number = read.read_u8()?;
         if protocol_revision_number != PROTOCOL_REVISION_NUMBER {
@@ -202,9 +202,8 @@ impl InformationElement {
 
     /// Writes this information element to a `Write`.
     pub fn write_to<W: Write>(&self, mut write: &mut W) -> Result<()> {
+        use crate::Error;
         use byteorder::{BigEndian, WriteBytesExt};
-        use Error;
-        use std::u16;
 
         match *self {
             InformationElement::Header(ref header) => {
