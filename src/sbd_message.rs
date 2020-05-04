@@ -53,14 +53,16 @@ impl Message {
         &self.payload
     }
 
+    /// Create message from Path
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         use std::fs::File;
         let file = File::open(path)?;
         Self::read_from(file)
     }
 
+    /// Create message from Read
     pub fn read_from<R: Read>(mut read: R) -> Result<Self> {
-        Self::create(InformationElement::read(&mut read)?)
+        Self::create(InformationElement::parse(&mut read)?)
     }
 
     pub fn new(
@@ -365,7 +367,7 @@ mod tests {
     fn sbd_mo_message_wit_location() {
         use std::fs::File;
         let file = File::open("data/1-mo-location.sbd").unwrap();
-        let iei = InformationElement::read(file).unwrap();
+        let iei = InformationElement::parse(file).unwrap();
 
         let message = Message::create(iei).unwrap();
         let location = message.location().unwrap();
@@ -383,7 +385,7 @@ mod tests {
     #[test]
     fn sbd_responce_for_mt() {
         let file = File::open("data/resp.sbd").unwrap();
-        let iei = InformationElement::read(file).unwrap();
+        let iei = InformationElement::parse(file).unwrap();
         let resp = InformationElement::Status(
             mt::ConfirmationStatus {
                 message_id: 287454020,
@@ -400,7 +402,7 @@ mod tests {
     fn sbd_mo_message_wit_location_big_data() {
         use std::fs::File;
         let file = File::open("data/data.sbd").unwrap();
-        let iei = InformationElement::read(file).unwrap();
+        let iei = InformationElement::parse(file).unwrap();
         let message = Message::create(iei).unwrap();
         let msg = Message::new(
             mo::Header {

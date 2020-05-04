@@ -160,7 +160,7 @@ pub enum InformationElement {
 
 impl InformationElement {
     /// Reads this information element from a `Read`.
-    pub fn read_from<R: Read>(mut read: R) -> Result<Self> {
+    pub fn read_single<R: Read>(mut read: R) -> Result<Self> {
         use crate::Error;
         use byteorder::{BigEndian, ReadBytesExt};
 
@@ -203,7 +203,7 @@ impl InformationElement {
         }
     }
 
-    pub fn read<R: Read>(mut read: R) -> Result<Vec<Self>> {
+    pub fn parse<R: Read>(mut read: R) -> Result<Vec<Self>> {
         use crate::Error;
         use byteorder::{BigEndian, ReadBytesExt};
 
@@ -220,7 +220,7 @@ impl InformationElement {
         let mut cursor = Cursor::new(message);
         let mut information_elements = Vec::new();
         while cursor.position() < u64::from(overall_message_length) {
-            information_elements.push(InformationElement::read_from(&mut cursor)?);
+            information_elements.push(InformationElement::read_single(&mut cursor)?);
         }
         Ok(information_elements)
     }
@@ -330,7 +330,7 @@ mod tests {
         file.seek(SeekFrom::Start(3)).unwrap();
         {
             let read = Read::by_ref(&mut file).take(31);
-            match InformationElement::read_from(read).unwrap() {
+            match InformationElement::read_single(read).unwrap() {
                 InformationElement::Header(header) => {
                     if let Some(header) = header.as_mo() {
                         assert_eq!(1894516585, header.auto_id);
@@ -349,7 +349,7 @@ mod tests {
                 _ => panic!("Unexpected information element"),
             }
         }
-        match InformationElement::read_from(file).unwrap() {
+        match InformationElement::read_single(file).unwrap() {
             InformationElement::MOPayload(data) => {
                 assert_eq!(b"test message from pete", data.as_slice())
             }
@@ -362,7 +362,7 @@ mod tests {
         let mut file = File::open("data/0-mo.sbd").unwrap();
         file.seek(SeekFrom::Start(3)).unwrap();
         let read = file.take(30);
-        assert!(InformationElement::read_from(read).is_err());
+        assert!(InformationElement::read_single(read).is_err());
     }
 
     #[test]
@@ -423,7 +423,7 @@ mod tests {
         let mut cursor = Cursor::new(Vec::new());
         ie.write_to(&mut cursor).unwrap();
         cursor.set_position(0);
-        assert_eq!(ie, InformationElement::read_from(&mut cursor).unwrap());
+        assert_eq!(ie, InformationElement::read_single(&mut cursor).unwrap());
     }
 
     #[test]
@@ -448,7 +448,7 @@ mod tests {
         let mut cursor = Cursor::new(Vec::new());
         ie.write_to(&mut cursor).unwrap();
         cursor.set_position(0);
-        assert_eq!(ie, InformationElement::read_from(cursor).unwrap());
+        assert_eq!(ie, InformationElement::read_single(cursor).unwrap());
     }
 
     #[test]
