@@ -206,6 +206,11 @@ impl Message {
     pub fn location(&self) -> &Option<LocationInformation> {
         &self.location
     }
+
+    /// Returns this message's information_elements.
+    pub fn information_elements(&self) -> &[InformationElement] {
+        &self.information_elements
+    }
 }
 
 impl From<Header> for Message {
