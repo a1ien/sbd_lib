@@ -311,6 +311,12 @@ impl From<mt::Header> for InformationElement {
     }
 }
 
+impl From<mo::LocationInformation> for InformationElement {
+    fn from(location: mo::LocationInformation) -> Self {
+        InformationElement::LocationInformation(location)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

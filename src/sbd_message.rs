@@ -220,7 +220,7 @@ mod tests {
     use std::fs::File;
     use std::str;
 
-    pub fn mo_header() -> mo::Header {
+    fn mo_header() -> mo::Header {
         mo::Header {
             auto_id: 1,
             imei: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
@@ -229,6 +229,10 @@ mod tests {
             mtmsn: 0,
             time_of_session: Utc.ymd(2017, 10, 1).and_hms(1, 2, 3),
         }
+    }
+
+    fn location() -> mo::LocationInformation {
+        mo::LocationInformation::new(0, (43, 30854), (41, 48860), Some(3))
     }
 
     #[test]
@@ -285,6 +289,12 @@ mod tests {
     fn two_headers() {
         let header = mo_header();
         assert!(Message::create(vec![header.clone().into(), header.into()]).is_err());
+    }
+
+    #[test]
+    fn two_location() {
+        let location = location();
+        assert!(Message::create(vec![location.clone().into(), location.into()]).is_err());
     }
 
     #[test]

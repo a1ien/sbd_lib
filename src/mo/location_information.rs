@@ -2,7 +2,7 @@ use crate::Result;
 use std::{fmt, io::Write};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LocationDirection {
+pub enum LocationDirection {
     NE,
     NW,
     SE,
@@ -41,16 +41,12 @@ pub struct LocationInformation {
 
 impl fmt::Display for LocationInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let latitude =
-            i32::from(self.latitude.0) * 10_000_000 + (i32::from(self.latitude.1) * 10000) / 60;
-        let longitude =
-            i32::from(self.longitude.0) * 10_000_000 + (i32::from(self.longitude.1) * 10000) / 60;
         write!(
             f,
             "direction: {:?}, latitude: {:.7}, longitude: {:.7} radius: {} km",
             self.direction,
-            f64::from(latitude) * 1e-7,
-            f64::from(longitude) * 1e-7,
+            self.latitude(),
+            self.longitude(),
             self.radius.unwrap_or(0xffff)
         )
     }
@@ -72,9 +68,21 @@ impl LocationInformation {
         }
     }
 
-    pub fn latitude(&self) {}
+    pub fn latitude(&self) -> f64 {
+        (f64::from(self.latitude.0) * 10_000_000.0f64
+            + (f64::from(self.latitude.1) * 10000.0) / 60.0)
+            * 1e-7
+    }
 
-    pub fn longitude(&self) {}
+    pub fn longitude(&self) -> f64 {
+        (f64::from(self.longitude.0) * 10_000_000.0f64
+            + (f64::from(self.longitude.1) * 10000.0) / 60.0)
+            * 1e-7
+    }
+
+    pub fn direction(&self) -> LocationDirection {
+        self.direction
+    }
 
     pub fn len(&self) -> usize {
         match self.radius {
@@ -104,5 +112,29 @@ impl LocationInformation {
         };
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lat_lon() {
+        let loc = LocationInformation::new(0, (43, 30854), (41, 48860), Some(3));
+        assert_eq!(loc.latitude(), 43.51423333333333);
+        assert_eq!(loc.longitude(), 41.81433333333333);
+    }
+
+    #[test]
+    fn direction() {
+        let loc = LocationInformation::new(0, (43, 30854), (41, 48860), Some(3));
+        assert_eq!(loc.direction(), LocationDirection::NE);
+        let loc = LocationInformation::new(0x40, (43, 30854), (41, 48860), Some(3));
+        assert_eq!(loc.direction(), LocationDirection::SE);
+        let loc = LocationInformation::new(0x80, (43, 30854), (41, 48860), Some(3));
+        assert_eq!(loc.direction(), LocationDirection::NW);
+        let loc = LocationInformation::new(0xC0, (43, 30854), (41, 48860), Some(3));
+        assert_eq!(loc.direction(), LocationDirection::SW);
     }
 }
