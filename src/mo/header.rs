@@ -13,6 +13,8 @@ pub struct Header {
     /// The Iridium Gateway id for this message.
     pub auto_id: u32,
     /// The device id.
+    #[cfg_attr(feature = "serde-derive",
+    serde(serialize_with = "as_str", deserialize_with = "str_to_imei"))]
     pub imei: [u8; 15],
     /// The session status.
     pub session_status: SessionStatus,
@@ -140,5 +142,32 @@ impl Header {
     /// ```
     pub fn time_of_session(&self) -> DateTime<Utc> {
         self.time_of_session
+    }
+}
+
+#[cfg(feature = "serde-derive")]
+fn as_str<S>(imei: &[u8], serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where S: serde::Serializer
+{
+    use std::str;
+    use serde::ser;
+    match str::from_utf8(imei) {
+        Ok(s) => serializer.serialize_str(s),
+        _=> Err(ser::Error::custom("imei contains invalid UTF-8 characters")),
+    }
+}
+
+#[cfg(feature = "serde-derive")]
+pub fn str_to_imei<'de, D>(deserializer: D) -> std::result::Result<[u8; 15], D::Error>
+    where D: serde::Deserializer<'de>
+{
+    use serde::de;
+    let mut value = [0; 15];
+    let data = <&'de [u8]>::deserialize(deserializer)?;
+    if data.len() == value.len() {
+        value.copy_from_slice(data);
+        Ok(value)
+    } else {
+        Err(de::Error::custom("imei wrong len"))
     }
 }
