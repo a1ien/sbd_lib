@@ -2,10 +2,13 @@ use crate::information_element::SbdHeader;
 use crate::mo::session_status::SessionStatus;
 use crate::Result;
 use chrono::{DateTime, Utc};
+#[cfg(feature = "serde-derive")]
+use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
 /// A mobile-originated header.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-derive", derive(Serialize, Deserialize))]
 pub struct Header {
     /// The Iridium Gateway id for this message.
     pub auto_id: u32,
