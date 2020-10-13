@@ -1,4 +1,5 @@
 use std::convert::From;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub enum Error {
@@ -41,6 +42,14 @@ pub enum Error {
 
 /// Create-specific `Result`.
 pub type Result<T> = ::std::result::Result<T, Error>;
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for Error {}
 
 impl From<::std::io::Error> for Error {
     fn from(err: ::std::io::Error) -> Error {
