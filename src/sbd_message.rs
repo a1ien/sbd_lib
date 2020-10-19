@@ -82,7 +82,7 @@ impl Message {
     /// Return overall message length with header
     pub fn length(&self) -> usize {
         self.header.len()
-            + payload.len()
+            + self.payload.len() + 1 + 2
             + self.location.and_then(|l| Some(l.len())).unwrap_or(0)
             + self
             .information_elements
@@ -192,14 +192,7 @@ impl Message {
             Header::MTHeader(_) => InformationElement::MTPayload(self.payload.clone()),
         };
 
-        let overall_message_length = self.header.len()
-            + payload.len()
-            + self.location.and_then(|l| Some(l.len())).unwrap_or(0)
-            + self
-                .information_elements
-                .iter()
-                .map(|ie| ie.len())
-                .sum::<usize>();
+        let overall_message_length = self.length() - 3;
 
         if overall_message_length > u16::MAX as usize {
             return Err(crate::Error::OverallMessageLength(overall_message_length));
