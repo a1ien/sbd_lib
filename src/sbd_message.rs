@@ -79,6 +79,20 @@ impl Message {
         }
     }
 
+    /// Return overall message length with header
+    pub fn length(&self) -> usize {
+        self.header.len()
+            + payload.len()
+            + self.location.and_then(|l| Some(l.len())).unwrap_or(0)
+            + self
+            .information_elements
+            .iter()
+            .map(|ie| ie.len())
+            .sum::<usize>()
+            + 1 // PROTOCOL_REVISION_NUMBER
+            + 2 // message size
+    }
+
     /// Creates a new message from information elements.
     ///
     /// # Examples
