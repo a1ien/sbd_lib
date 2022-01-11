@@ -320,14 +320,15 @@ impl From<mo::LocationInformation> for InformationElement {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{TimeZone, Utc};
     use std::fs::File;
     use std::io::{Cursor, Read, Seek, SeekFrom};
+    use time::{Date, Month, PrimitiveDateTime, Time};
 
     #[test]
     fn read_from() {
         let mut file = File::open("data/0-mo.sbd").unwrap();
         file.seek(SeekFrom::Start(3)).unwrap();
+
         {
             let read = Read::by_ref(&mut file).take(31);
             match InformationElement::read_single(read).unwrap() {
@@ -339,7 +340,11 @@ mod tests {
                         assert_eq!(75, header.momsn);
                         assert_eq!(0, header.mtmsn);
                         assert_eq!(
-                            Utc.ymd(2015, 7, 9).and_hms(18, 15, 08),
+                            PrimitiveDateTime::new(
+                                Date::from_calendar_date(2015, Month::July, 9).unwrap(),
+                                Time::from_hms(18, 15, 8).unwrap(),
+                            )
+                            .assume_utc(),
                             header.time_of_session
                         );
                     } else {
@@ -373,7 +378,11 @@ mod tests {
             session_status: mo::SessionStatus::Ok,
             momsn: 1,
             mtmsn: 1,
-            time_of_session: Utc.ymd(2017, 10, 17).and_hms(12, 0, 0),
+            time_of_session: PrimitiveDateTime::new(
+                Date::from_calendar_date(2017, Month::October, 17).unwrap(),
+                Time::from_hms(12, 0, 0).unwrap(),
+            )
+            .assume_utc(),
         };
         let ie = InformationElement::Header(header.into());
         assert_eq!(31, ie.len());
@@ -417,7 +426,11 @@ mod tests {
             session_status: mo::SessionStatus::Ok,
             momsn: 1,
             mtmsn: 1,
-            time_of_session: Utc.ymd(2017, 10, 17).and_hms(12, 0, 0),
+            time_of_session: PrimitiveDateTime::new(
+                Date::from_calendar_date(2017, Month::October, 17).unwrap(),
+                Time::from_hms(12, 0, 0).unwrap(),
+            )
+            .assume_utc(),
         };
         let ie = InformationElement::Header(header.into());
         let mut cursor = Cursor::new(Vec::new());
@@ -434,7 +447,11 @@ mod tests {
             session_status: mo::SessionStatus::Ok,
             momsn: 1,
             mtmsn: 1,
-            time_of_session: Utc.ymd(1969, 12, 31).and_hms(23, 59, 59),
+            time_of_session: PrimitiveDateTime::new(
+                Date::from_calendar_date(1969, Month::December, 31).unwrap(),
+                Time::from_hms(23, 59, 59).unwrap(),
+            )
+            .assume_utc(),
         };
         assert!(InformationElement::Header(header.into())
             .write_to(&mut Cursor::new(Vec::new()))

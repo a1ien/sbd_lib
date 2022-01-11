@@ -1,10 +1,10 @@
 use crate::information_element::SbdHeader;
 use crate::mo::session_status::SessionStatus;
 use crate::Result;
-use chrono::{DateTime, Utc};
 #[cfg(feature = "serde-derive")]
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
+use time::OffsetDateTime;
 
 /// A mobile-originated header.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -13,8 +13,10 @@ pub struct Header {
     /// The Iridium Gateway id for this message.
     pub auto_id: u32,
     /// The device id.
-    #[cfg_attr(feature = "serde-derive",
-    serde(serialize_with = "as_str", deserialize_with = "str_to_imei"))]
+    #[cfg_attr(
+        feature = "serde-derive",
+        serde(serialize_with = "as_str", deserialize_with = "str_to_imei")
+    )]
     pub imei: [u8; 15],
     /// The session status.
     pub session_status: SessionStatus,
@@ -23,7 +25,7 @@ pub struct Header {
     /// The mobile terminated message sequence number.
     pub mtmsn: u16,
     /// The time of iridium session.
-    pub time_of_session: DateTime<Utc>,
+    pub time_of_session: OffsetDateTime,
 }
 
 impl SbdHeader for Header {
@@ -38,7 +40,7 @@ impl SbdHeader for Header {
         write.write_u8(self.session_status as u8)?;
         write.write_u16::<BigEndian>(self.momsn)?;
         write.write_u16::<BigEndian>(self.mtmsn)?;
-        let timestamp = self.time_of_session.timestamp();
+        let timestamp = self.time_of_session.unix_timestamp();
         if timestamp < 0 {
             return Err(Error::NegativeTimestamp(timestamp));
         } else {
@@ -63,7 +65,6 @@ impl Header {
     pub fn read_from(read: &mut dyn Read) -> Result<Self> {
         use crate::Error;
         use byteorder::{BigEndian, ReadBytesExt};
-        use chrono::TimeZone;
 
         let auto_id = read.read_u32::<BigEndian>().map_err(Error::Io)?;
         let mut imei = [0; 15];
@@ -71,10 +72,9 @@ impl Header {
         let session_status = SessionStatus::new(read.read_u8().map_err(Error::Io)?)?;
         let momsn = read.read_u16::<BigEndian>().map_err(Error::Io)?;
         let mtmsn = read.read_u16::<BigEndian>().map_err(Error::Io)?;
-        let time_of_session = read
-            .read_u32::<BigEndian>()
-            .map_err(Error::from)
-            .map(|n| Utc.timestamp(i64::from(n), 0))?;
+        let time_of_session = read.read_u32::<BigEndian>().map_err(Error::from).map(|n| {
+            OffsetDateTime::from_unix_timestamp(i64::from(n)).expect("We convert from u32 time")
+        })?;
         Ok(Header {
             auto_id,
             imei,
@@ -140,26 +140,28 @@ impl Header {
     ///     let time_of_session = header.time_of_session();
     /// }
     /// ```
-    pub fn time_of_session(&self) -> DateTime<Utc> {
+    pub fn time_of_session(&self) -> OffsetDateTime {
         self.time_of_session
     }
 }
 
 #[cfg(feature = "serde-derive")]
 fn as_str<S>(imei: &[u8], serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where S: serde::Serializer
+where
+    S: serde::Serializer,
 {
-    use std::str;
     use serde::ser;
+    use std::str;
     match str::from_utf8(imei) {
         Ok(s) => serializer.serialize_str(s),
-        _=> Err(ser::Error::custom("imei contains invalid UTF-8 characters")),
+        _ => Err(ser::Error::custom("imei contains invalid UTF-8 characters")),
     }
 }
 
 #[cfg(feature = "serde-derive")]
 pub fn str_to_imei<'de, D>(deserializer: D) -> std::result::Result<[u8; 15], D::Error>
-    where D: serde::Deserializer<'de>
+where
+    D: serde::Deserializer<'de>,
 {
     use serde::de;
     let mut value = [0; 15];

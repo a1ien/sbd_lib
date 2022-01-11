@@ -99,19 +99,26 @@ impl Message {
     ///
     /// ```
     /// # fn main() {
-    /// use chrono::{Utc, TimeZone};
-    /// use sbd_lib::mo;
-    /// use sbd_lib::{InformationElement, Header, Message};
-    /// let header = InformationElement::Header(mo::Header {
-    ///     auto_id: 1,
-    ///     imei: [0; 15],
-    ///     session_status: mo::SessionStatus::Ok,
-    ///     momsn: 1,
-    ///     mtmsn: 0,
-    ///     time_of_session: Utc.ymd(2017, 10, 1).and_hms(0, 0, 0),
-    /// }.into());
-    /// let payload = InformationElement::MOPayload(Vec::new());
-    /// let message = Message::create(vec![header, payload]);
+    ///         use sbd_lib::mo;
+    ///         use sbd_lib::{Header, InformationElement, Message};
+    ///         use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time};
+    ///         let header = InformationElement::Header(
+    ///             mo::Header {
+    ///                 auto_id: 1,
+    ///                 imei: [0; 15],
+    ///                 session_status: mo::SessionStatus::Ok,
+    ///                 momsn: 1,
+    ///                 mtmsn: 0,
+    ///                 time_of_session: PrimitiveDateTime::new(
+    ///                     Date::from_calendar_date(2017, Month::October, 1).unwrap(),
+    ///                     Time::from_hms(0, 0, 0).unwrap(),
+    ///                 )
+    ///                 .assume_utc(),
+    ///             }
+    ///             .into(),
+    ///         );
+    ///         let payload = InformationElement::MOPayload(Vec::new());
+    ///         let message = Message::create(vec![header, payload]);
     /// # }
     /// ```
     pub fn create<I: IntoIterator<Item = InformationElement>>(iter: I) -> Result<Self> {
@@ -230,8 +237,8 @@ impl From<Header> for Message {
 mod tests {
     use super::*;
     use crate::{mo, mt};
-    use chrono::{TimeZone, Utc};
     use std::{fs::File, io::Cursor};
+    use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time};
 
     fn mo_header() -> mo::Header {
         mo::Header {
@@ -240,7 +247,11 @@ mod tests {
             session_status: mo::SessionStatus::Ok,
             momsn: 1,
             mtmsn: 0,
-            time_of_session: Utc.ymd(2017, 10, 1).and_hms(1, 2, 3),
+            time_of_session: PrimitiveDateTime::new(
+                Date::from_calendar_date(2017, Month::October, 1).unwrap(),
+                Time::from_hms(1, 2, 3).unwrap(),
+            )
+            .assume_utc(),
         }
     }
 
@@ -261,7 +272,6 @@ mod tests {
 
     #[test]
     fn imei() {
-        use chrono::Utc;
         let message = Message::from(Header::from(mo::Header {
             auto_id: 1,
             imei: [
@@ -271,7 +281,7 @@ mod tests {
             session_status: mo::SessionStatus::Ok,
             momsn: 1,
             mtmsn: 0,
-            time_of_session: Utc::now(),
+            time_of_session: OffsetDateTime::now_utc(),
         }));
         assert_eq!("123456789012345", message.imei());
     }
@@ -320,7 +330,11 @@ mod tests {
             assert_eq!(75, header.momsn);
             assert_eq!(0, header.mtmsn);
             assert_eq!(
-                Utc.ymd(2015, 7, 9).and_hms(18, 15, 8),
+                PrimitiveDateTime::new(
+                    Date::from_calendar_date(2015, Month::July, 9).unwrap(),
+                    Time::from_hms(18, 15, 8).unwrap(),
+                )
+                .assume_utc(),
                 header.time_of_session
             );
             assert_eq!(
@@ -332,7 +346,6 @@ mod tests {
 
     #[test]
     fn generate_save_and_read_back() {
-        use chrono::{SubsecRound, Utc};
         use std::io::Cursor;
         let header = Header::MOHeader(mo::Header {
             auto_id: 0x545645,
@@ -340,7 +353,10 @@ mod tests {
             session_status: mo::SessionStatus::Ok,
             momsn: 101,
             mtmsn: 102,
-            time_of_session: Utc::now().trunc_subsecs(0),
+            time_of_session: OffsetDateTime::from_unix_timestamp(
+                OffsetDateTime::now_utc().unix_timestamp(),
+            )
+            .unwrap(),
         });
         let mut buff = vec![];
         let message = Message::new(header, vec![], None, vec![]);
@@ -362,7 +378,7 @@ mod tests {
                 imei: *b"300234063904190",
                 momsn: 75,
                 mtmsn: 0,
-                time_of_session: Utc.timestamp(1436465708, 0),
+                time_of_session: OffsetDateTime::from_unix_timestamp(1436465708).unwrap(),
             }
             .into(),
             vec![
@@ -423,7 +439,7 @@ mod tests {
                 imei: *b"300434069104350",
                 momsn: 545,
                 mtmsn: 0,
-                time_of_session: Utc.timestamp(1587546484, 0),
+                time_of_session: OffsetDateTime::from_unix_timestamp(1587546484).unwrap(),
             }
             .into(),
             vec![

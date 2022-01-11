@@ -2,6 +2,7 @@ use std::convert::From;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// I/O error
     Io(::std::io::Error),
@@ -14,6 +15,9 @@ pub enum Error {
 
     /// The timestamp is negative, but only positive ones are supported.
     NegativeTimestamp(i64),
+
+    /// The timestamp is negative, but only positive ones are supported.
+    InvalidTimeRange(i64),
 
     /// The overall message length is too long.
     OverallMessageLength(usize),
