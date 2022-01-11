@@ -35,6 +35,11 @@ impl fmt::Display for Message {
 }
 
 impl Message {
+    const PROTOCOL_REVISION_NUMBER_SIZE: usize = 1;
+    const MESSAGE_SIZE_IN_HEADER: usize = 2;
+    pub const HEADER_SIZE: usize =
+        Self::PROTOCOL_REVISION_NUMBER_SIZE + Self::MESSAGE_SIZE_IN_HEADER;
+
     /// Returns this message's header.
     pub fn header(&self) -> &dyn SbdHeader {
         &self.header
@@ -82,15 +87,16 @@ impl Message {
     /// Return overall message length with header
     pub fn length(&self) -> usize {
         self.header.len()
-            + self.payload.len() + 1 + 2
+            + self.payload.len()
+            + 1
+            + 2
             + self.location.and_then(|l| Some(l.len())).unwrap_or(0)
             + self
-            .information_elements
-            .iter()
-            .map(|ie| ie.len())
-            .sum::<usize>()
-            + 1 // PROTOCOL_REVISION_NUMBER
-            + 2 // message size
+                .information_elements
+                .iter()
+                .map(|ie| ie.len())
+                .sum::<usize>()
+            + Self::HEADER_SIZE
     }
 
     /// Creates a new message from information elements.
