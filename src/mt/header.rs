@@ -1,5 +1,5 @@
 use crate::information_element::SbdHeader;
-use crate::Result;
+use crate::{Imei, Result};
 use std::io::{Read, Write};
 
 /// A mobile-terminated header.
@@ -8,7 +8,7 @@ pub struct Header {
     /// The Unique Client Message ID this message.
     pub message_id: u32,
     /// The device id.
-    pub imei: [u8; 15],
+    pub imei: Imei,
     /// The mobile-terminated Disposition Flags
     pub flags: u16,
 }
@@ -49,7 +49,7 @@ impl Header {
 
         Ok(Header {
             message_id,
-            imei,
+            imei: imei.into(),
             flags,
         })
     }

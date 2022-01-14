@@ -111,7 +111,7 @@ impl Message {
     ///         let header = InformationElement::Header(
     ///             mo::Header {
     ///                 auto_id: 1,
-    ///                 imei: [0; 15],
+    ///                 imei: [0; 15].into(),
     ///                 session_status: mo::SessionStatus::Ok,
     ///                 momsn: 1,
     ///                 mtmsn: 0,
@@ -249,7 +249,7 @@ mod tests {
     fn mo_header() -> mo::Header {
         mo::Header {
             auto_id: 1,
-            imei: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+            imei: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].into(),
             session_status: mo::SessionStatus::Ok,
             momsn: 1,
             mtmsn: 0,
@@ -283,7 +283,8 @@ mod tests {
             imei: [
                 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34,
                 0x35,
-            ],
+            ]
+            .into(),
             session_status: mo::SessionStatus::Ok,
             momsn: 1,
             mtmsn: 0,
@@ -355,7 +356,7 @@ mod tests {
         use std::io::Cursor;
         let header = Header::MOHeader(mo::Header {
             auto_id: 0x545645,
-            imei: [0x31; 15],
+            imei: [0x31; 15].into(),
             session_status: mo::SessionStatus::Ok,
             momsn: 101,
             mtmsn: 102,
@@ -381,7 +382,7 @@ mod tests {
             mo::Header {
                 auto_id: 1894516585,
                 session_status: mo::SessionStatus::Ok,
-                imei: *b"300234063904190",
+                imei: (*b"300234063904190").into(),
                 momsn: 75,
                 mtmsn: 0,
                 time_of_session: OffsetDateTime::from_unix_timestamp(1436465708).unwrap(),
@@ -442,7 +443,7 @@ mod tests {
             mo::Header {
                 auto_id: 26502124,
                 session_status: mo::SessionStatus::Ok,
-                imei: *b"300434069104350",
+                imei: (*b"300434069104350").into(),
                 momsn: 545,
                 mtmsn: 0,
                 time_of_session: OffsetDateTime::from_unix_timestamp(1587546484).unwrap(),

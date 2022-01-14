@@ -335,7 +335,7 @@ mod tests {
                 InformationElement::Header(header) => {
                     if let Some(header) = header.as_mo() {
                         assert_eq!(1894516585, header.auto_id);
-                        assert_eq!(b"300234063904190", &header.imei);
+                        assert_eq!(*b"300234063904190", header.imei);
                         assert_eq!(mo::SessionStatus::Ok, header.session_status);
                         assert_eq!(75, header.momsn);
                         assert_eq!(0, header.mtmsn);
@@ -374,7 +374,7 @@ mod tests {
     fn header_len() {
         let header = mo::Header {
             auto_id: 1,
-            imei: [0; 15],
+            imei: [0; 15].into(),
             session_status: mo::SessionStatus::Ok,
             momsn: 1,
             mtmsn: 1,
@@ -422,7 +422,7 @@ mod tests {
     fn roundtrip_header() {
         let header = mo::Header {
             auto_id: 1,
-            imei: [0; 15],
+            imei: [0; 15].into(),
             session_status: mo::SessionStatus::Ok,
             momsn: 1,
             mtmsn: 1,
@@ -443,7 +443,7 @@ mod tests {
     fn header_time_of_session_too_old() {
         let header = mo::Header {
             auto_id: 1,
-            imei: [0; 15],
+            imei: [0; 15].into(),
             session_status: mo::SessionStatus::Ok,
             momsn: 1,
             mtmsn: 1,
