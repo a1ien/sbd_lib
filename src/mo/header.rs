@@ -4,6 +4,8 @@ use crate::Result;
 #[cfg(feature = "serde-derive")]
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
+#[cfg(feature = "serde-derive")]
+use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
 /// A mobile-originated header.
@@ -25,6 +27,10 @@ pub struct Header {
     /// The mobile terminated message sequence number.
     pub mtmsn: u16,
     /// The time of iridium session.
+    #[cfg_attr(
+        feature = "serde-derive",
+        serde(serialize_with = "as_rfc3339", deserialize_with = "from_rfc3339")
+    )]
     pub time_of_session: OffsetDateTime,
 }
 
@@ -172,4 +178,31 @@ where
     } else {
         Err(de::Error::custom("imei wrong len"))
     }
+}
+
+#[cfg(feature = "serde-derive")]
+fn as_rfc3339<S>(
+    time_of_session: &OffsetDateTime,
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser;
+    match time_of_session.format(&Rfc3339) {
+        Ok(s) => serializer.serialize_str(&s),
+        _ => Err(ser::Error::custom("time_of_session contains data")),
+    }
+}
+
+#[cfg(feature = "serde-derive")]
+pub fn from_rfc3339<'de, D>(deserializer: D) -> std::result::Result<OffsetDateTime, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de;
+
+    let data = <&'de str>::deserialize(deserializer)?;
+    OffsetDateTime::parse(data, &Rfc3339)
+        .map_err(|_| de::Error::custom("time_of_session contains data"))
 }

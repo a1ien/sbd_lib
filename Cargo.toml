@@ -10,7 +10,7 @@ homepage = "https://gitlab.com/a1ien/sbd_lib"
 repository = "https://gitlab.com/a1ien/sbd_lib.git"
 
 [features]
-serde-derive = ["time/serde", "serde"]
+serde-derive = ["time/serde", "serde", "time/formatting", "time/parsing"]
 
 [dependencies]
 time = "0.3"
