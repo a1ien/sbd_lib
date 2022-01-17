@@ -3,6 +3,8 @@ use crate::{
     mo::LocationInformation,
     Result,
 };
+#[cfg(feature = "serde-derive")]
+use serde::{Deserialize, Serialize};
 use std::{
     fmt,
     io::{Read, Write},
@@ -14,6 +16,7 @@ const PROTOCOL_REVISION_NUMBER: u8 = 1;
 /// A Iridium SBD message.
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde-derive", derive(Serialize, Deserialize))]
 pub struct Message {
     header: Header,
     payload: Vec<u8>,
@@ -424,7 +427,7 @@ mod tests {
         let resp = InformationElement::Status(
             mt::ConfirmationStatus {
                 message_id: 287454020,
-                imei: *b"300434060009290",
+                imei: (*b"300434060009290").into(),
                 auto_id: 3064195606,
                 status: 1,
             }

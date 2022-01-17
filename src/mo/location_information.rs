@@ -1,7 +1,10 @@
 use crate::Result;
+#[cfg(feature = "serde-derive")]
+use serde::{Deserialize, Serialize};
 use std::{fmt, io::Write};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-derive", derive(Serialize, Deserialize))]
 pub enum LocationDirection {
     NE,
     NW,
@@ -32,6 +35,7 @@ impl From<LocationDirection> for u8 {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-derive", derive(Serialize, Deserialize))]
 pub struct LocationInformation {
     direction: LocationDirection,
     latitude: (u8, u16),

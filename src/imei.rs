@@ -1,5 +1,6 @@
 #[cfg(feature = "serde-derive")]
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
 
@@ -60,6 +61,15 @@ impl FromStr for Imei {
             Ok(value.into())
         } else {
             Err(ParseImeiError)
+        }
+    }
+}
+
+impl Display for Imei {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match std::str::from_utf8(self) {
+            Ok(s) => write!(f, "{}", s),
+            _ => write!(f, "Incorrect imei"),
         }
     }
 }

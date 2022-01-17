@@ -1,8 +1,9 @@
 use crate::mo::LocationInformation;
 use crate::{mo, mt, Result};
 use byteorder;
-use std::io::Cursor;
-use std::{fmt, io::Read, io::Write};
+#[cfg(feature = "serde-derive")]
+use serde::{Deserialize, Serialize};
+use std::{fmt, io::Cursor, io::Read, io::Write};
 
 const PROTOCOL_REVISION_NUMBER: u8 = 1;
 
@@ -21,6 +22,7 @@ pub trait SbdHeader: fmt::Debug {
 
 /// A mobile-originated or mobile-terminated header
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-derive", derive(Serialize, Deserialize))]
 pub enum Header {
     /// Information element holding the mobile-originated header.
     MOHeader(mo::Header),
@@ -105,6 +107,7 @@ impl From<mt::Header> for Header {
 
 /// A mobile-originated or mobile-terminated status.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-derive", derive(Serialize, Deserialize))]
 pub enum Status {
     /// Information element holding the mobile-originated status.
     MOStatus(mo::ConfirmationStatus),
@@ -145,6 +148,7 @@ impl From<mt::ConfirmationStatus> for Status {
 ///
 /// These are the building blocks of a SBD message.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-derive", derive(Serialize, Deserialize))]
 pub enum InformationElement {
     /// Information element holding the header MO or MT.
     Header(Header),

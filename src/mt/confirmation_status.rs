@@ -1,16 +1,19 @@
-use crate::Result;
+use crate::{Imei, Result};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+#[cfg(feature = "serde-derive")]
+use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
 /// The Message Delivery Confirmation of a mobile-originated session.
 ///
 /// The descriptions for these codes are taken directly from the `DirectIP` documentation.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde-derive", derive(Serialize, Deserialize))]
 pub struct ConfirmationStatus {
     /// The Unique Client Message ID this message.
     pub message_id: u32,
     /// The device id.
-    pub imei: [u8; 15],
+    pub imei: Imei,
     /// The Iridium Gateway id for this message.
     pub auto_id: u32,
     /// Message Status
@@ -34,7 +37,7 @@ impl ConfirmationStatus {
         Ok(ConfirmationStatus {
             message_id,
             auto_id,
-            imei,
+            imei: imei.into(),
             status,
         })
     }

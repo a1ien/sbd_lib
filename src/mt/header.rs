@@ -1,9 +1,12 @@
 use crate::information_element::SbdHeader;
 use crate::{Imei, Result};
+#[cfg(feature = "serde-derive")]
+use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
 /// A mobile-terminated header.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-derive", derive(Serialize, Deserialize))]
 pub struct Header {
     /// The Unique Client Message ID this message.
     pub message_id: u32,
