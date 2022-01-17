@@ -1,6 +1,7 @@
 #[cfg(feature = "serde-derive")]
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde-derive", derive(Serialize, Deserialize))]
@@ -41,6 +42,25 @@ impl PartialEq<Imei> for [u8; 15] {
 impl PartialEq<[u8; 15]> for Imei {
     fn eq(&self, other: &[u8; 15]) -> bool {
         self.0.eq(other)
+    }
+}
+
+#[derive(Debug)]
+pub struct ParseImeiError;
+
+impl FromStr for Imei {
+    type Err = ParseImeiError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut value = [0; 15];
+        let data = s.as_bytes();
+
+        if data.len() == value.len() && data.iter().all(u8::is_ascii_digit) {
+            value.copy_from_slice(data);
+            Ok(value.into())
+        } else {
+            Err(ParseImeiError)
+        }
     }
 }
 
